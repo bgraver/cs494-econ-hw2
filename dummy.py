@@ -13,7 +13,7 @@ from messages import Upload, Request
 from util import even_split
 from peer import Peer
 
-class Dummy(Peer):
+class mates(Peer):
     def post_init(self):
         print "post_init(): %s here!" % self.id
         self.dummy_state = dict()
@@ -54,6 +54,7 @@ class Dummy(Peer):
         # request all available pieces from all peers!
         # (up to self.max_requests from each)
         for peer in peers:
+            # determine what the number of pieces the
             av_set = set(peer.available_pieces)
             isect = av_set.intersection(np_set)
             n = min(self.max_requests, len(isect))

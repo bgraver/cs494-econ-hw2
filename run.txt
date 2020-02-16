@@ -1,0 +1,1 @@
+python sim.py --loglevel=info --num-pieces=128 --blocks-per-piece=32 --min-bw=16 --max-bw=64 --max-rounds=1000 --iters=32 Seed,2 mates,10
