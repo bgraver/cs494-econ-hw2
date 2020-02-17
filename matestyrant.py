@@ -13,7 +13,7 @@ from messages import Upload, Request
 from util import even_split
 from peer import Peer
 
-class mates(Peer):
+class matesTyrant(Peer):
     def post_init(self):
         print "post_init(): %s here!" % self.id
         self.dummy_state = dict()
@@ -44,6 +44,28 @@ class mates(Peer):
         logging.debug("look at the AgentHistory class in history.py for details")
         logging.debug(str(history))
 
+        #  find how many of each
+        total_piece_dict = {}
+        for peer in peers:
+            peer_set = set(peer.available_pieces)
+            for piece in peer_set():
+                if piece not in total_piece_dict.keys():
+                    total_piece_dict[piece] = {1, [peer.id]}
+                else:
+                    total_piece_dict[piece][0] += 1
+                    total_piece_dict[piece][1].append(peer.id)
+
+
+        '''
+        #  keeps track of 
+        all_pieces = {}
+        for peer in peers:
+            for piece in peer.available_pieces:
+                if piece in all_pieces.keys():
+                    all_pieces[piece] += 1
+                else:
+                    all_pieces[piece] = 1
+        '''
         requests = []   # We'll put all the things we want here
         # Symmetry breaking is good...
         random.shuffle(needed_pieces)
@@ -55,18 +77,38 @@ class mates(Peer):
         # (up to self.max_requests from each)
         for peer in peers:
             av_set = set(peer.available_pieces)
-            isect = av_set.intersection(np_set)
-            n = min(self.max_requests, len(isect))
+            isect = av_set.intersection(np_set)  # the pieces that peer p needs
+
+            # picking all the pieces for what P needs
+            if len(isect) >= self.max_requests:
+                for piece_id in isect:
+                    start_block = self.pieces[piece_id]
+                    r = Request(self.id, peer.id, piece_id, start_block)
+                    requests.append(r)
+        else:  # if you can't request all of the pieces
+            #   pick the rarest first pieces
+            #  check who has what pieces that you need
+
+
+
+            for piece_id in isect:
+                isect
+
+
+
+
+
+            # n = min(self.max_requests, len(isect))
             # More symmetry breaking -- ask for random pieces.
             # This would be the place to try fancier piece-requesting strategies
             # to avoid getting the same thing from multiple peers at a time.
-            for piece_id in random.sample(isect, n):
+            # for piece_id in random.sample(isect, n):
                 # aha! The peer has this piece! Request it.
                 # which part of the piece do we need next?
                 # (must get the next-needed blocks in order)
-                start_block = self.pieces[piece_id]
-                r = Request(self.id, peer.id, piece_id, start_block)
-                requests.append(r)
+            #     start_block = self.pieces[piece_id]
+            #     r = Request(self.id, peer.id, piece_id, start_block)
+            #     requests.append(r)
 
         return requests
 

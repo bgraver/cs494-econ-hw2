@@ -13,7 +13,7 @@ from messages import Upload, Request
 from util import even_split
 from peer import Peer
 
-class mates(Peer):
+class matesStd(Peer):
     def post_init(self):
         print "post_init(): %s here!" % self.id
         self.dummy_state = dict()
@@ -53,6 +53,29 @@ class mates(Peer):
         peers.sort(key=lambda p: p.id)
         # request all available pieces from all peers!
         # (up to self.max_requests from each)
+
+        #  find how many of each
+        total_piece_dict = {}
+        for peer in peers:
+            peer_set = set(peer.available_pieces)
+            for piece in peer_set:
+                if piece not in total_piece_dict.keys():
+                    total_piece_dict[piece] = [1, [peer.id]]
+                else:
+                    total_piece_dict[piece][0] += 1
+                    total_piece_dict[piece][1].append(peer.id)
+
+        '''
+        #  keeps track of 
+        all_pieces = {}
+        for peer in peers:
+            for piece in peer.available_pieces:
+                if piece in all_pieces.keys():
+                    all_pieces[piece] += 1
+                else:
+                    all_pieces[piece] = 1
+        '''
+
         for peer in peers:
             av_set = set(peer.available_pieces)
             isect = av_set.intersection(np_set)
