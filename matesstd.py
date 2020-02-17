@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# This is a dummy peer that just illustrates the available information your peers 
+# This is a dummy peer that just illustrates the available information your peers
 # have available.
 
 # You'll want to copy this file to AgentNameXXX.py for various versions of XXX,
@@ -13,13 +13,15 @@ from messages import Upload, Request
 from util import even_split
 from peer import Peer
 
+
 class matesStd(Peer):
     def post_init(self):
         print "post_init(): %s here!" % self.id
         self.dummy_state = dict()
         self.dummy_state["cake"] = "lie"
-    
+
     def requests(self, peers, history):
+
         """
         peers: available info about the peers (who has what pieces)
         history: what's happened so far as far as this peer can see
@@ -32,65 +34,55 @@ class matesStd(Peer):
         needed_pieces = filter(needed, range(len(self.pieces)))
         np_set = set(needed_pieces)  # sets support fast intersection ops.
 
+        # logging.debug("%s here: still need pieces %s" % (
+        #    self.id, needed_pieces))
 
-        logging.debug("%s here: still need pieces %s" % (
-            self.id, needed_pieces))
+        # logging.debug("%s still here. Here are some peers:" % self.id)
+        # for p in peers:
+        #    logging.debug("id: %s, available pieces: %s" % (p.id, p.available_pieces))
 
-        logging.debug("%s still here. Here are some peers:" % self.id)
-        for p in peers:
-            logging.debug("id: %s, available pieces: %s" % (p.id, p.available_pieces))
+        # logging.debug("And look, I have my entire history available too:")
+        # logging.debug("look at the AgentHistory class in history.py for details")
+        # logging.debug(str(history))
 
-        logging.debug("And look, I have my entire history available too:")
-        logging.debug("look at the AgentHistory class in history.py for details")
-        logging.debug(str(history))
-
-        requests = []   # We'll put all the things we want here
-        # Symmetry breaking is good...
-        random.shuffle(needed_pieces)
-        
-        # Sort peers by id.  This is probably not a useful sort, but other 
-        # sorts might be useful
-        peers.sort(key=lambda p: p.id)
-        # request all available pieces from all peers!
-        # (up to self.max_requests from each)
-
-        #  find how many of each
-        total_piece_dict = {}
-        for peer in peers:
-            peer_set = set(peer.available_pieces)
-            for piece in peer_set:
-                if piece not in total_piece_dict.keys():
-                    total_piece_dict[piece] = [1, [peer.id]]
-                else:
-                    total_piece_dict[piece][0] += 1
-                    total_piece_dict[piece][1].append(peer.id)
-
-        '''
-        #  keeps track of 
+        requests = []  # We'll put all the things we want here
+        # count all pieces in different peers
         all_pieces = {}
         for peer in peers:
             for piece in peer.available_pieces:
                 if piece in all_pieces.keys():
-                    all_pieces[piece] += 1
+                    all_pieces[piece] = all_pieces[piece] + 1
                 else:
                     all_pieces[piece] = 1
-        '''
-
+        # Symmetry breaking is good...
+        # random.shuffle(needed_pieces)
+        # Sort peers by id.  This is probably not a useful sort, but other
+        # sorts might be useful
+        # peers.sort(key=lambda p: p.id)
+        # request all available pieces from all peers!
+        # (up to self.max_requests from each)
         for peer in peers:
             av_set = set(peer.available_pieces)
-            isect = av_set.intersection(np_set)
-            n = min(self.max_requests, len(isect))
-            # More symmetry breaking -- ask for random pieces.
-            # This would be the place to try fancier piece-requesting strategies
-            # to avoid getting the same thing from multiple peers at a time.
-            for piece_id in random.sample(isect, n):
-                # aha! The peer has this piece! Request it.
-                # which part of the piece do we need next?
-                # (must get the next-needed blocks in order)
+            isect = list(av_set.intersection(np_set))
+            # sort and find rarest, then start with rarest first
+            isect.sort(key=lambda p: all_pieces[p])
+            for piece_id in isect:
                 start_block = self.pieces[piece_id]
                 r = Request(self.id, peer.id, piece_id, start_block)
                 requests.append(r)
+            # n = min(self.max_requests, len(isect))
+        # More symmetry breaking -- ask for random pieces.
+        # This would be the place to try fancier piece-requesting strategies
+        # to avoid getting the same thing from multiple peers at a time.
+        #    for piece_id in random.sample(isect, n):
+        # aha! The peer has this piece! Request it.
+        # which part of the piece do we need next?
+        # (must get the next-needed blocks in order)
+        #        start_block = self.pieces[piece_id]
+        #        r = Request(self.id, peer.id, piece_id, start_block)
+        #        requests.append(r)
 
+        # print(requests)
         return requests
 
     def uploads(self, requests, peers, history):
@@ -117,17 +109,28 @@ class matesStd(Peer):
             chosen = []
             bws = []
         else:
-            logging.debug("Still here: uploading to a random peer")
-            # change my internal state for no reason
-            self.dummy_state["cake"] = "pie"
+            # chosen = []
+            download_bandwidth = {}
+            for peer in peers:
+                download_bandwidth[peer.id] = 0
+            for downloads in history.downloads:
+                for d in downloads:
+                    download_bandwidth[d.from_id] += d.blocks
+            # pick top 3 as unchoked peers
+            chosen = sorted(download_bandwidth, key=download_bandwidth.get, reverse=True)[:3]
+            # each 3 rounds, randomly unchoke another peer
+            if round % 3 == 0:
+                chosen.append(random.choice(peers).id)
 
-            request = random.choice(requests)
-            chosen = [request.requester_id]
+            # logging.debug("Still here: uploading to a random peer")
+            # change my internal state for no reason
+            #    self.dummy_state["cake"] = "pie"
+            # request = random.choice(requests)
+            # chosen = [request.requester_id]
             # Evenly "split" my upload bandwidth among the one chosen requester
             bws = even_split(self.up_bw, len(chosen))
 
         # create actual uploads out of the list of peer ids and bandwidths
         uploads = [Upload(self.id, peer_id, bw)
                    for (peer_id, bw) in zip(chosen, bws)]
-            
         return uploads
